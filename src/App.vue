@@ -1,36 +1,111 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
-import { useItems, useVirtualScroll } from '@/composables'
+import { onMounted, watch } from 'vue'
+import {
+  useItems,
+  useVirtualScroll,
+  useInfiniteScroll,
+  useScrollJump,
+  useNavigation,
+} from '@/composables'
+import { CONTAINER_HEIGHT, INFINITE_SCROLL_THRESHOLD, TOTAL_ITEMS } from '@/const'
+import LoadingIndicator from '@/components/LoadingIndicator.vue'
+import ControlPanel from '@/components/ControlPanel.vue'
+import NavigationPanel from '@/components/NavigationPanel.vue'
+import StatsDisplay from '@/components/StatsDisplay.vue'
+import VirtualList from '@/components/VirtualList.vue'
 
-const { items, isLoading, initItems, clearAndRegenerate } = useItems()
-const { visibleItems, handleScroll } = useVirtualScroll(items)
+const { items, isLoading, hasMore, initItems, clearAndRegenerate, loadMore, loadUpToIndex } =
+  useItems()
+
+const {
+  visibleItems,
+  totalHeight,
+  containerRef,
+  itemPositions,
+  renderStats,
+  handleScroll: handleVirtualScroll,
+  measureItem,
+  initializePositions,
+  clearCache,
+} = useVirtualScroll(items)
+
+const { isLoadingMore, handleScroll: handleInfiniteScroll } = useInfiniteScroll(
+  loadMore,
+  hasMore,
+  INFINITE_SCROLL_THRESHOLD,
+)
+
+const { jumpToIndex } = useScrollJump(containerRef, totalHeight)
+
+const { showJumpPanel, toggleNavigation, handleJumpToItem, quickJump } = useNavigation({
+  isLoading,
+  loadUpToIndex,
+  initializePositions,
+  itemPositions,
+  jumpToIndex,
+  totalItems: TOTAL_ITEMS,
+})
+
+async function onScroll(e: Event) {
+  handleVirtualScroll(e)
+  await handleInfiniteScroll(e)
+}
+
+async function handleRegenerate() {
+  clearCache()
+  await clearAndRegenerate()
+}
+
+watch(
+  () => items.value.length,
+  () => {
+    requestAnimationFrame(() => {
+      initializePositions()
+    })
+  },
+)
 
 onMounted(async () => {
   await initItems()
+  requestAnimationFrame(() => {
+    initializePositions()
+  })
 })
 </script>
 
-<template class="app">
-  <h1 class="heading">Демонстрация Virtual Scroll</h1>
+<template>
+  <div class="app">
+    <h1 class="heading">Демонстрация Virtual Scroll</h1>
 
-  <div v-if="isLoading" class="loading">ЗагрузОчка из дбшки</div>
+    <LoadingIndicator :is-loading="isLoading" />
 
-  <div class="controls">
-    <button @click="clearAndRegenerate" class="regenerate-btn">Обновить нах</button>
-  </div>
+    <ControlPanel
+      :show-navigation="showJumpPanel"
+      @regenerate="handleRegenerate"
+      @toggle-navigation="toggleNavigation"
+    />
 
-  <div class="scroll-container" @scroll="handleScroll">
-    <div class="scroll-content">
-      <div v-for="item in visibleItems" :key="item.id" class="item">
-        <div class="item-content">
-          <div class="item-header">
-            <span class="item-id">#{{ item.id }}</span>
-            <span>{{ item.timestamp.toLocaleTimeString() }}</span>
-          </div>
-          <div class="item-text">{{ item.text }}</div>
-        </div>
-      </div>
-    </div>
+    <NavigationPanel
+      v-if="showJumpPanel"
+      @quick-jump="quickJump"
+      @jump-to-item="handleJumpToItem"
+    />
+
+    <StatsDisplay
+      :total-items="items.length"
+      :visible-items="visibleItems.length"
+      :cached-heights="renderStats.cachedHeights"
+    />
+
+    <VirtualList
+      ref="containerRef"
+      :container-height="CONTAINER_HEIGHT"
+      :total-height="totalHeight"
+      :visible-items="visibleItems"
+      :is-loading-more="isLoadingMore"
+      @scroll="onScroll"
+      @measure-item="measureItem"
+    />
   </div>
 </template>
 
@@ -45,50 +120,5 @@ onMounted(async () => {
   text-align: center;
   margin-top: 1rem;
   margin-bottom: 2rem;
-}
-
-.scroll-container {
-  border: 2px solid #ddd;
-  border-radius: 12px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  position: relative;
-}
-
-.scroll-content {
-  position: relative;
-}
-
-.item-content {
-  padding: 12px 16px;
-}
-
-.item-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.item-id {
-  font-weight: bold;
-  font-size: 0.9em;
-}
-
-.loading {
-  text-align: center;
-  padding: 20px;
-  font-size: 1.2em;
-  color: #666;
-}
-
-.controls {
-  margin-bottom: 20px;
-  display: flex;
-  justify-content: center;
-}
-
-.regenerate-btn {
-  padding: 10px 20px;
-  font-size: 1em;
 }
 </style>

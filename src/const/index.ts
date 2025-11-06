@@ -1,7 +1,12 @@
 export const TOTAL_ITEMS: number = 1000000
-export const ITEM_HEIGHT: number = 60
-export const CONTAINER_HEIGHT: number = 500
-export const BUFFER: number = 5
+export const DEFAULT_ITEM_HEIGHT: number = 80
+export const CONTAINER_HEIGHT: number = 600
+export const BUFFER: number = 2
+export const CHUNK_SIZE: number = 100
+export const MAX_RENDERED_ITEMS: number = 30
 export const DB_NAME: string = 'VirtualScrollDB'
 export const STORE_NAME: string = 'items'
 export const DB_VERSION: number = 1
+export const INFINITE_SCROLL_THRESHOLD: number = 300
+export const ITEMS_PER_PAGE: number = 50
+export const INITIAL_ITEMS: number = 10000
