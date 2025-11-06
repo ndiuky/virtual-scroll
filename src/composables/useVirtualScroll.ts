@@ -1,5 +1,5 @@
 import { ref, computed, type Ref } from 'vue'
-import { ITEM_HEIGHT, CONTAINER_HEIGHT, BUFFER } from '../const'
+import { ITEM_HEIGHT, CONTAINER_HEIGHT, BUFFER } from '@/const'
 
 export function useVirtualScroll(items: Ref<Item[]>) {
   const useVirtualScroll = ref<boolean>(false)

@@ -1,17 +1,23 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
-import { useItems } from './composables/useItems'
-import { useVirtualScroll } from './composables/useVirtualScroll'
-const { items, generateItems } = useItems()
+import { useItems, useVirtualScroll } from '@/composables'
+
+const { items, isLoading, initItems, clearAndRegenerate } = useItems()
 const { visibleItems, handleScroll } = useVirtualScroll(items)
 
-onMounted(() => {
-  generateItems()
+onMounted(async () => {
+  await initItems()
 })
 </script>
 
 <template class="app">
   <h1 class="heading">Демонстрация Virtual Scroll</h1>
+
+  <div v-if="isLoading" class="loading">ЗагрузОчка из дбшки</div>
+
+  <div class="controls">
+    <button @click="clearAndRegenerate" class="regenerate-btn">Обновить нах</button>
+  </div>
 
   <div class="scroll-container" @scroll="handleScroll">
     <div class="scroll-content">
@@ -66,5 +72,23 @@ onMounted(() => {
 .item-id {
   font-weight: bold;
   font-size: 0.9em;
+}
+
+.loading {
+  text-align: center;
+  padding: 20px;
+  font-size: 1.2em;
+  color: #666;
+}
+
+.controls {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.regenerate-btn {
+  padding: 10px 20px;
+  font-size: 1em;
 }
 </style>
