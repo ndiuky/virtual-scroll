@@ -1,9 +1,10 @@
 import { ref } from 'vue'
-import { TOTAL_ITEMS, ITEMS_PER_PAGE, INITIAL_ITEMS } from '@/const'
 import { indexedDBService } from '@/utils'
 import { getRandomItemsArray } from '@/utils/helpers'
+import { useSettings } from './useSettings'
 
 export function useItems() {
+  const { settings } = useSettings()
   const items = ref<Item[]>([])
   const renderTime = ref<number>(0)
   const memoryUsage = ref<string>('0')
@@ -14,7 +15,7 @@ export function useItems() {
   function generateItemsBatch(startIndex: number, count: number): Item[] {
     const newItems: Item[] = []
 
-    for (let i = startIndex; i < startIndex + count && i < TOTAL_ITEMS; i++) {
+    for (let i = startIndex; i < startIndex + count && i < settings.totalItems; i++) {
       const texts: [string, string, string] = getRandomItemsArray(i)
       const randomTextIndex = Math.floor(Math.random() * texts.length)
 
@@ -30,11 +31,11 @@ export function useItems() {
 
   async function generateItems(): Promise<void> {
     const startTime = performance.now()
-    const newItems = generateItemsBatch(0, INITIAL_ITEMS)
+    const newItems = generateItemsBatch(0, settings.initialItems)
 
     items.value = newItems
     currentPage.value = 1
-    hasMore.value = newItems.length < TOTAL_ITEMS
+    hasMore.value = newItems.length < settings.totalItems
     renderTime.value = performance.now() - startTime
     memoryUsage.value = (JSON.stringify(items.value).length / 1024 / 1024).toFixed(2)
 
@@ -44,8 +45,8 @@ export function useItems() {
   async function loadMore(): Promise<void> {
     if (!hasMore.value) return
 
-    const startIndex = currentPage.value * ITEMS_PER_PAGE
-    const newBatch = generateItemsBatch(startIndex, ITEMS_PER_PAGE)
+    const startIndex = currentPage.value * settings.itemsPerPage
+    const newBatch = generateItemsBatch(startIndex, settings.itemsPerPage)
 
     if (newBatch.length === 0) {
       hasMore.value = false
@@ -54,7 +55,7 @@ export function useItems() {
 
     items.value = [...items.value, ...newBatch]
     currentPage.value++
-    hasMore.value = items.value.length < TOTAL_ITEMS
+    hasMore.value = items.value.length < settings.totalItems
 
     indexedDBService.saveItems(items.value)
   }
@@ -66,14 +67,14 @@ export function useItems() {
       const loadedItems = await indexedDBService.getItems()
 
       if (loadedItems.length > 0) {
-        const initialBatch = loadedItems.slice(0, INITIAL_ITEMS)
+        const initialBatch = loadedItems.slice(0, settings.initialItems)
         items.value = initialBatch
         renderTime.value = performance.now() - startTime
 
         setTimeout(() => {
           items.value = loadedItems
-          currentPage.value = Math.ceil(loadedItems.length / ITEMS_PER_PAGE)
-          hasMore.value = loadedItems.length < TOTAL_ITEMS
+          currentPage.value = Math.ceil(loadedItems.length / settings.itemsPerPage)
+          hasMore.value = loadedItems.length < settings.totalItems
           memoryUsage.value = (JSON.stringify(items.value).length / 1024 / 1024).toFixed(2)
         }, 0)
       }
@@ -99,12 +100,12 @@ export function useItems() {
   }
 
   async function loadUpToIndex(targetIndex: number): Promise<void> {
-    if (targetIndex < 0 || targetIndex >= TOTAL_ITEMS) return
+    if (targetIndex < 0 || targetIndex >= settings.totalItems) return
 
     if (targetIndex < items.value.length) return
 
     const itemsNeeded = targetIndex + 1 - items.value.length
-    const batchesToLoad = Math.ceil(itemsNeeded / ITEMS_PER_PAGE)
+    const batchesToLoad = Math.ceil(itemsNeeded / settings.itemsPerPage)
 
     for (let i = 0; i < batchesToLoad && hasMore.value; i++) {
       await loadMore()

@@ -1,8 +1,9 @@
 import type { Ref } from 'vue'
 import { ref, computed, nextTick, watch } from 'vue'
-import { DEFAULT_ITEM_HEIGHT, CONTAINER_HEIGHT, BUFFER, MAX_RENDERED_ITEMS } from '@/const'
+import { useSettings } from './useSettings'
 
 export function useVirtualScroll(items: Ref<Item[]>) {
+  const { settings } = useSettings()
   const scrollTop = ref<number>(0)
   const itemHeights = ref<Map<number, number>>(new Map())
   const itemPositions = ref<ItemPosition[]>([])
@@ -15,7 +16,7 @@ export function useVirtualScroll(items: Ref<Item[]>) {
     const positions: ItemPosition[] = []
 
     for (let i = 0; i < items.value.length; i++) {
-      const height = itemHeights.value.get(i) || DEFAULT_ITEM_HEIGHT
+      const height = itemHeights.value.get(i) || settings.defaultItemHeight
       positions.push({
         index: i,
         top: currentTop,
@@ -31,7 +32,10 @@ export function useVirtualScroll(items: Ref<Item[]>) {
     const keysToDelete: number[] = []
 
     itemHeights.value.forEach((_, index) => {
-      if (index < startIndex - MAX_RENDERED_ITEMS || index > endIndex + MAX_RENDERED_ITEMS) {
+      if (
+        index < startIndex - settings.maxRenderedItems ||
+        index > endIndex + settings.maxRenderedItems
+      ) {
         keysToDelete.push(index)
       }
     })
@@ -53,7 +57,7 @@ export function useVirtualScroll(items: Ref<Item[]>) {
 
   const totalHeight = computed(() => {
     if (itemPositions.value.length === 0) {
-      return items.value.length * DEFAULT_ITEM_HEIGHT
+      return items.value.length * settings.defaultItemHeight
     }
     const lastPosition = itemPositions.value[itemPositions.value.length - 1]
     return lastPosition ? lastPosition.top + lastPosition.height : 0
@@ -62,37 +66,37 @@ export function useVirtualScroll(items: Ref<Item[]>) {
   const visibleItems = computed(() => {
     if (itemPositions.value.length === 0) {
       const count = Math.min(
-        Math.ceil(CONTAINER_HEIGHT / DEFAULT_ITEM_HEIGHT) + BUFFER * 2,
-        MAX_RENDERED_ITEMS,
+        Math.ceil(settings.containerHeight / settings.defaultItemHeight) + settings.buffer * 2,
+        settings.maxRenderedItems,
       )
       return items.value.slice(0, count).map((item, idx) => ({
         ...item,
-        top: idx * DEFAULT_ITEM_HEIGHT,
-        height: DEFAULT_ITEM_HEIGHT,
+        top: idx * settings.defaultItemHeight,
+        height: settings.defaultItemHeight,
       })) as VirtualItem[]
     }
 
     const start = scrollTop.value
-    const end = scrollTop.value + CONTAINER_HEIGHT
+    const end = scrollTop.value + settings.containerHeight
 
     let startIndex = itemPositions.value.findIndex(
-      (pos) => pos.top + pos.height >= start - BUFFER * DEFAULT_ITEM_HEIGHT,
+      (pos) => pos.top + pos.height >= start - settings.buffer * settings.defaultItemHeight,
     )
     if (startIndex === -1) startIndex = 0
 
     let endIndex = itemPositions.value.findIndex(
-      (pos) => pos.top > end + BUFFER * DEFAULT_ITEM_HEIGHT,
+      (pos) => pos.top > end + settings.buffer * settings.defaultItemHeight,
     )
     if (endIndex === -1) endIndex = itemPositions.value.length
 
     const totalVisible = endIndex - startIndex
-    if (totalVisible > MAX_RENDERED_ITEMS) {
-      endIndex = startIndex + MAX_RENDERED_ITEMS
+    if (totalVisible > settings.maxRenderedItems) {
+      endIndex = startIndex + settings.maxRenderedItems
     }
 
     if (
-      Math.abs(lastVisibleRange.value.start - startIndex) > MAX_RENDERED_ITEMS ||
-      Math.abs(lastVisibleRange.value.end - endIndex) > MAX_RENDERED_ITEMS
+      Math.abs(lastVisibleRange.value.start - startIndex) > settings.maxRenderedItems ||
+      Math.abs(lastVisibleRange.value.end - endIndex) > settings.maxRenderedItems
     ) {
       cleanupOldHeights(startIndex, endIndex)
     }

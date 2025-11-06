@@ -1,18 +1,35 @@
 <script setup lang="ts">
-import { onMounted, watch } from 'vue'
+import { onMounted, watch, computed } from 'vue'
 import {
   useItems,
   useVirtualScroll,
   useInfiniteScroll,
   useScrollJump,
   useNavigation,
+  useSettings,
 } from '@/composables'
-import { CONTAINER_HEIGHT, INFINITE_SCROLL_THRESHOLD, TOTAL_ITEMS } from '@/const'
 import LoadingIndicator from '@/components/LoadingIndicator.vue'
 import ControlPanel from '@/components/ControlPanel.vue'
 import NavigationPanel from '@/components/NavigationPanel.vue'
 import StatsDisplay from '@/components/StatsDisplay.vue'
 import VirtualList from '@/components/VirtualList.vue'
+import SettingsPanel from '@/components/SettingsPanel.vue'
+
+import type { VirtualScrollSettings } from '@/composables/useSettings'
+
+const {
+  settings,
+  showSettings,
+  toggleSettings,
+  closeSettings,
+  updateSettings,
+  resetSettings,
+  defaultSettings,
+} = useSettings()
+
+const containerHeight = computed(() => settings.containerHeight)
+const infiniteScrollThreshold = computed(() => settings.infiniteScrollThreshold)
+const totalItems = computed(() => settings.totalItems)
 
 const { items, isLoading, hasMore, initItems, clearAndRegenerate, loadMore, loadUpToIndex } =
   useItems()
@@ -32,7 +49,7 @@ const {
 const { isLoadingMore, handleScroll: handleInfiniteScroll } = useInfiniteScroll(
   loadMore,
   hasMore,
-  INFINITE_SCROLL_THRESHOLD,
+  infiniteScrollThreshold.value,
 )
 
 const { jumpToIndex } = useScrollJump(containerRef, totalHeight)
@@ -43,7 +60,7 @@ const { showJumpPanel, toggleNavigation, handleJumpToItem, quickJump } = useNavi
   initializePositions,
   itemPositions,
   jumpToIndex,
-  totalItems: TOTAL_ITEMS,
+  totalItems: totalItems.value,
 })
 
 async function onScroll(e: Event) {
@@ -54,6 +71,16 @@ async function onScroll(e: Event) {
 async function handleRegenerate() {
   clearCache()
   await clearAndRegenerate()
+}
+
+function handleSettingsUpdate(newSettings: Partial<VirtualScrollSettings>) {
+  updateSettings(newSettings)
+  handleRegenerate()
+}
+
+function handleSettingsReset() {
+  resetSettings()
+  handleRegenerate()
 }
 
 watch(
@@ -75,7 +102,10 @@ onMounted(async () => {
 
 <template>
   <div class="app">
-    <h1 class="heading">Демонстрация Virtual Scroll</h1>
+    <div class="app-header">
+      <h1 class="heading">Демонстрация Virtual Scroll</h1>
+      <button class="settings-btn" @click="toggleSettings">⚙️ Настройки</button>
+    </div>
 
     <LoadingIndicator :is-loading="isLoading" />
 
@@ -99,12 +129,21 @@ onMounted(async () => {
 
     <VirtualList
       ref="containerRef"
-      :container-height="CONTAINER_HEIGHT"
+      :container-height="containerHeight"
       :total-height="totalHeight"
       :visible-items="visibleItems"
       :is-loading-more="isLoadingMore"
       @scroll="onScroll"
       @measure-item="measureItem"
+    />
+
+    <SettingsPanel
+      v-if="showSettings"
+      :settings="settings"
+      :default-settings="defaultSettings"
+      @update="handleSettingsUpdate"
+      @reset="handleSettingsReset"
+      @close="closeSettings"
     />
   </div>
 </template>
@@ -116,9 +155,30 @@ onMounted(async () => {
   padding: 20px;
 }
 
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
 .heading {
   text-align: center;
-  margin-top: 1rem;
-  margin-bottom: 2rem;
+  margin: 1rem 0;
+  flex: 1;
+}
+
+.settings-btn {
+  background: #f0f0f0;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.2s;
+}
+
+.settings-btn:hover {
+  background: #e0e0e0;
 }
 </style>

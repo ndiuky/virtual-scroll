@@ -5,9 +5,8 @@ interface Item {
   height?: number
 }
 
-interface VirtualItem extends Item {
+interface VirtualItem extends Required<Item> {
   top: number
-  height: number
 }
 
 interface ItemPosition {
